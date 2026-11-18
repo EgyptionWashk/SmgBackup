@@ -12,8 +12,7 @@ permissions:
   contents: write   # مطلوب فقط لرفع APK إلى Releases عند وسم نسخة (v*)
 
 concurrency:
-  group: smgbackup-$
-{{ github.ref }}
+  group: smgbackup-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -41,8 +40,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-          cache-read-only: $
-{{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -53,8 +51,7 @@ jobs:
             build-tools;${{ env.ANDROID_BUILD_TOOLS }}
 
       - name: Accept SDK licenses
-        run: yes | sdkmanager 
---licenses > /dev/null || true
+        run: yes | sdkmanager --licenses > /dev/null || true
 
       - name: Show toolchain versions
         run: |
@@ -67,8 +64,7 @@ jobs:
       - name: Locate and rename APK
         id: apk
         run: |
-          APK=$(find app/build/
-outputs/apk/debug -name '*.apk' | head -n 1)
+          APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -n 1)
           test -n "$APK" || { echo "::error::APK not found"; exit 1; }
           OUT="SmgBackup-${GITHUB_RUN_NUMBER}-debug.apk"
           cp "$APK" "$OUT"
@@ -77,8 +73,7 @@ outputs/apk/debug -name '*.apk' | head -n 1)
             echo "### SmgBackup APK"
             echo "- File: \`$OUT\`"
             echo "- Size: $(du -h "$OUT" | cut -f1)"
-            echo "- SHA-256: \`$(sha256sum "$OUT" | cut -d' ' 
--f1)\`"
+            echo "- SHA-256: \`$(sha256sum "$OUT" | cut -d' ' -f1)\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload APK artifact
