@@ -1,0 +1,60 @@
+import os
+import shutil
+import zipfile
+
+
+def process_local_backup():
+  # مسار مجلد العمل الحالي (افترض أن السكريبت و ملف الـ ZIP ومجلد .github في نفس المكان)
+  current_dir = os.path.dirname(os.path.abspath(__file__))
+
+  zip_name = "SmgBackup.zip"
+  zip_path = os.path.join(current_dir, zip_name)
+  github_dir = os.path.join(current_dir, ".github")
+  target_backup_dir = os.path.join(github_dir, "SmgBackup")
+
+  # التأكد من وجود مجلد .github
+  if not os.path.exists(github_dir):
+    print(f"[-] خطأ: لم يتم العثور على مجلد .github في المسار: {github_dir}")
+    return
+
+  # التأكد من وجود ملف الـ ZIP
+  if not os.path.exists(zip_path):
+    print(f"[-] خطأ: لم يتم العثور على ملف الـ ZIP في المسار: {zip_path}")
+    return
+
+  # 1. تنظيف مجلد .github مع استثناء ملف الـ ZIP ومجلد workflows
+  print("[*] جاري تنظيف مجلد .github...")
+  for item in os.listdir(github_dir):
+    item_path = os.path.join(github_dir, item)
+
+    # الاستثناءات المطلوبة
+    if item.lower() == zip_name.lower() or item.lower() == "workflows":
+      print(f"[!] تم الاستثناء (لن يتم حذفه): {item}")
+      continue
+
+    try:
+      if os.path.isdir(item_path):
+        shutil.rmtree(item_path)
+        print(f"[-] تم حذف المجلد القديم: {item}")
+      else:
+        os.remove(item_path)
+        print(f"[-] تم حذف الملف القديم: {item}")
+    except Exception as e:
+      print(f"[!] تعذر حذف {item}. السبب: {e}")
+
+  # 2. إنشاء مجلد SmgBackup داخل .github (أو تفريغه إذا كان موجوداً)
+  if os.path.exists(target_backup_dir):
+    shutil.rmtree(target_backup_dir)
+  os.makedirs(target_backup_dir, exist_ok=True)
+  print("[+] تم إنشاء مجلد الهدف: .github/SmgBackup")
+
+  # 3. فك ضغط ملف الـ ZIP داخل SmgBackup مباشرة بدون تكرار
+  print("[*] جاري فك ضغط الملفات واستخراجها...")
+  with zipfile.ZipFile(zip_path, "r") as zip_ref:
+    for member in zip_ref.namelist():
+      filename = os.path.basename(member)
+      if not filename and member.endswith("/"):
+        continue  # تجاهل المجلدات الفارغة الوهمية
+
+      source_file = zip_ref.open(member)
+      target
