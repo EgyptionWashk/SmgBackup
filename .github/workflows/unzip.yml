@@ -1,0 +1,41 @@
+name: Extract Backup Zip Directly
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clean and Extract to .github
+        run: |
+          echo "=== 1. التنقل إلى مجلد .github ==="
+          cd .github
+
+          echo "=== 2. فك ضغط الملف مؤقتاً ==="
+          unzip -q SmgBackup.zip -d temp_extracted/
+
+          echo "=== 3. نقل المحتويات مباشرة إلى مجلد .github وإزالة المجلدات الزائدة ==="
+          if [ -d "temp_extracted/SmgBackup" ]; then
+            cp -r temp_extracted/SmgBackup/* .
+          else
+            cp -r temp_extracted/* .
+          fi
+
+          # تنظيف المجلد المؤقت وحذف مجلد SmgBackup الزائد إن وجد
+          rm -rf temp_extracted
+          rm -rf SmgBackup
+
+          echo "=== 4. حفظ التغييرات ورفعها للمستودع ==="
+          cd ..
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Flatten structure and extract directly into .github" || echo "No changes to commit"
+          git push
