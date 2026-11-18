@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">خزنة النسخ الاحتياطي</string>
+
+    <string name="consent_title">الموافقة على الاستخدام</string>
+    <string name="consent_body">
+هذا التطبيق يقوم بعمل نسخة احتياطية مشفّرة من بياناتك على جهازك فقط، ولا يرسل أي بيانات إلى أي خادم خارجي.
+بالموافقة أنت تقر بأنك مالك هذا الجهاز أو لديك إذن صريح من مالكه لعمل النسخة الاحتياطية.
+سيُطلب منك التحقق من هويتك عبر بصمة الإصبع أو الوجه قبل كل عملية نسخ أو استرجاع.
+    </string>
+    <string name="consent_accept">أوافق على الشروط وأبدأ</string>
+    <string name="consent_decline">لا أوافق</string>
+
+    <string name="biometric_title">تأكيد الهوية</string>
+    <string name="biometric_subtitle">فضلاً تحقق من هويتك للمتابعة</string>
+    <string name="biometric_negative">إلغاء</string>
+
+    <string name="home_title">الصفحة الرئيسية</string>
+    <string name="action_backup">عمل نسخة احتياطية</string>
+    <string name="action_restore">استعادة نسخة احتياطية</string>
+    <string name="action_vault">خزنة كلمات المرور</string>
+
+    <string name="select_all">تحديد الكل</string>
+    <string name="deselect_all">إلغاء تحديد الكل</string>
+    <string name="start_backup">بدء النسخ الاحتياطي</string>
+    <string name="start_restore">بدء الاستعادة</string>
+
+    <string name="category_device_info">معلومات الجهاز</string>
+    <string name="category_contacts">جهات الاتصال</string>
+    <string name="category_accounts">الحسابات المسجّلة على الجهاز</string>
+    <string name="category_sms">الرسائل النصية</string>
+    <string name="category_call_log">سجل المكالمات</string>
+    <string name="category_apps">قائمة التطبيقات المثبتة</string>
+    <string name="category_files">الملفات (التخزين الداخلي)</string>
+    <string name="category_sdcard">الملفات (بطاقة الذاكرة)</string>
+    <string name="category_settings">إعدادات النظام القابلة للقراءة</string>
+    <string name="category_passwords">خزنة كلمات المرور</string>
+
+    <string name="password_set_title">كلمة مرور التشفير</string>
+    <string name="password_set_hint">أدخل كلمة مرور قوية لتشفير النسخة الاحتياطية</string>
+    <string name="password_confirm_hint">تأكيد كلمة المرور</string>
+
+    <string name="backup_progress">جاري إنشاء النسخة الاحتياطية…</string>
+    <string name="restore_progress">جاري استعادة البيانات…</string>
+    <string name="done">تمت العملية بنجاح</string>
+    <string name="error_generic">حدث خطأ، فضلاً حاول مرة أخرى</string>
+</resources>
