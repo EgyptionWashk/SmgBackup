@@ -1,0 +1,53 @@
+name: Extract Backup Zip Directly
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract files directly into .github
+        run: |
+          set -eu
+          cd .github
+
+          echo "=== 1. فك الضغط مؤقتاً ==="
+          rm -rf /tmp/x && mkdir /tmp/x
+          unzip -q -o SmgBackup.zip -d /tmp/x -x '__MACOSX/*' '*.DS_Store'
+
+          echo "=== 2. تحديد مجلد المشروع الحقيقي داخل الـ zip ==="
+          SETTINGS=$(find /tmp/x -maxdepth 4 \( -name 'settings.gradle.kts' -o -name 'settings.gradle' \) | awk '{print length, $0}' | sort -n | head -n 1 | cut -d' ' -f2-)
+          if [ -n "$SETTINGS" ]; then
+            SRC=$(dirname "$SETTINGS")
+          else
+            SRC=/tmp/x
+            # إن وُجد مجلد واحد فقط في الأعلى ادخل إليه
+            if [ "$(find /tmp/x -mindepth 1 -maxdepth 1 | wc -l)" -eq 1 ] && [ -d "$(find /tmp/x -mindepth 1 -maxdepth 1)" ]; then
+              SRC=$(find /tmp/x -mindepth 1 -maxdepth 1)
+            fi
+          fi
+          echo "Source: $SRC"
+
+          echo "=== 3. نسخ الملفات مباشرة إلى .github (بدون مجلد غلاف) ==="
+          cp -a "$SRC"/. .
+
+          echo "=== 4. تنظيف ==="
+          rm -rf /tmp/x SmgBackup
+
+          echo "=== المحتوى النهائي ==="
+          ls -la
+
+          echo "=== 5. حفظ ورفع التغييرات ==="
+          cd ..
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Extract SmgBackup.zip directly into .github (no wrapper folder)" || echo "No changes to commit"
+          git push
