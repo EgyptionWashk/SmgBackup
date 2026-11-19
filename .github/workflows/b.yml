@@ -1,0 +1,34 @@
+name: Extract Backup Zip Directly
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract files directly into .github
+        run: |
+          set -eu
+          cd .github
+
+          echo "=== 1. فك الضغط مؤقتاً ==="
+          rm -rf /tmp/x && mkdir /tmp/x
+          unzip -q -o SmgBackup.zip -d /tmp/x -x '__MACOSX/*' '*.DS_Store'
+
+          echo "=== 2. تحديد مجلد المشروع الحقيقي داخل الـ zip ==="
+          SETTINGS=$(find /tmp/x -maxdepth 4 \( -name 'settings.gradle.kts' -o -name 'settings.gradle' \) | awk '{print length, $0}' | sort -n | head -n 1 | cut -d' ' -f2-)
+          if [ -n "$SETTINGS" ]; then
+            SRC=$(dirname "$SETTINGS")
+          else
+            SRC=/tmp/x
+            # إن وُجد مجلد واحد فقط في الأعلى ادخل إليه
+            if [ "$(find /tmp/x -mindepth 1 -maxdepth 1 | wc -l)" -eq 1 ] && [ -d "$(find /tmp/x -mindepth 1 -maxdepth 1)" ]; then
+              SRC=$(find /tmp/x -mindepth 1 -maxdepth 1)
+            fi
