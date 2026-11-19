@@ -1,0 +1,87 @@
+name: 1 - Extract SmgBackup.zip
+
+on:
+  workflow_dispatch:
+    inputs:
+      delete_zip:
+        description: "Delete zip after success"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract zip into repo root
+        run: |
+          set -eu
+          ZIP=$(find . -path ./.git -prune -o -iname 'SmgBackup.zip' -print | head -n 1)
+          test -n "$ZIP" || { echo "::error::SmgBackup.zip not found"; exit 1; }
+          echo "Found: $ZIP"
+
+          rm -rf /tmp/x && mkdir /tmp/x
+          unzip -q -o "$ZIP" -d /tmp/x -x '__MACOSX/*' '*.DS_Store'
+
+          echo "---- zip content (top) ----"
+          find /tmp/x -maxdepth 3 | head -n 40
+
+          SETTINGS=$(find /tmp/x -maxdepth 4 \( -name 'settings.gradle.kts' -o -name 'settings.gradle' \) | awk '{print length, $0}' | sort -n | head -n 1 | cut -d' ' -f2-)
+          test -n "$SETTINGS" || { echo "::error::settings.gradle(.kts) not found inside the zip"; exit 1; }
+          SRC=$(dirname "$SETTINGS")
+          echo "Project folder inside zip: $SRC"
+
+          rsync -a --exclude='.git' --exclude='.github' --exclude='*.zip' "$SRC"/ ./
+
+      - name: Validate project
+        run: |
+          ERR=0
+          ok(){ echo "OK: $1"; }
+          bad(){ echo "::error::$1"; ERR=1; }
+          warn(){ echo "::warning::$1"; }
+
+          if [ -f settings.gradle.kts ] || [ -f settings.gradle ]; then ok settings.gradle; else bad "settings.gradle missing"; fi
+          if [ -f build.gradle.kts ] || [ -f build.gradle ]; then ok root-build.gradle; else bad "root build.gradle missing"; fi
+          if [ -f app/build.gradle.kts ] || [ -f app/build.gradle ]; then ok app/build.gradle; else bad "app/build.gradle missing"; fi
+          if [ -f app/src/main/AndroidManifest.xml ]; then ok AndroidManifest; else bad "AndroidManifest.xml missing"; fi
+          if [ -d SmgBackup ]; then bad "wrapper folder SmgBackup still in root"; fi
+
+          grep -q ':app' settings.gradle* || bad "settings does not include :app"
+          grep -q 'namespace' app/build.gradle* || warn "namespace not found"
+          grep -q 'compileSdk' app/build.gradle* || warn "compileSdk not found"
+          [ -f gradle.properties ] || warn "gradle.properties missing"
+          [ -f gradlew ] || warn "gradlew missing (build will use Gradle 8.9)"
+
+          N=$(find app/src \( -name '*.kt' -o -name '*.java' \) | wc -l)
+          echo "Source files: $N"
+          [ "$N" -gt 0 ] || bad "no Kotlin/Java sources"
+
+          echo "---- Tree ----"
+          find . -maxdepth 2 -not -path './.git*' | sort | head -n 60
+          exit $ERR
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ "${{ inputs.delete_zip }}" = "true" ]; then
+            git rm -q --ignore-unmatch .github/SmgBackup.zip
+          fi
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            git commit -m "Extract SmgBackup.zip to repo root"
+            git pull --rebase origin "${{ github.ref_name }}" || true
+            git push
+          fi
+
+      - name: Trigger build workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build.yml --ref "${{ github.ref_name }}" || echo "Run build manually"
