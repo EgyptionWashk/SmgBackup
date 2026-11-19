@@ -1,0 +1,86 @@
+name: 1 - Extract SmgBackup.zip
+
+on:
+  workflow_dispatch:
+    inputs:
+      delete_zip:
+        description: "حذف ملف zip بعد النجاح"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract zip into repo root (no wrapper folder)
+        run: |
+          set -euo pipefail
+          ZIP=$(find .github -maxdepth 1 -iname 'SmgBackup.zip' | head -n 1)
+          test -n "$ZIP" || { echo "::error::.github/SmgBackup.zip not found"; exit 1; }
+          rm -rf /tmp/x && mkdir /tmp/x
+          unzip -q "$ZIP" -x '__MACOSX/*' '*.DS_Store' -d /tmp/x
+
+          # ادخل داخل المجلد الغلاف طالما يوجد مجلد واحد فقط في المستوى الأعلى
+          SRC=/tmp/x
+          while true; do
+            mapfile -t E < <(find "$SRC" -mindepth 1 -maxdepth 1)
+            if [ ${#E[@]} -eq 1 ] && [ -d "${E[0]}" ] && [ ! -f "${E[0]}/settings.gradle.kts" ] || \
+               [ ${#E[@]} -eq 1 ] && [ -d "${E[0]}" ] && [ "$(basename "${E[0]}")" != "app" ] && [ ! -f "$SRC/settings.gradle.kts" ] && [ ! -f "$SRC/settings.gradle" ]; then
+              SRC="${E[0]}"
+            else
+              break
+            fi
+          done
+          echo "Source folder: $SRC"
+          ls -la "$SRC"
+
+          rsync -a --exclude='.git' --exclude='.github' "$SRC"/ ./
+
+      - name: Validate project
+        run: |
+          set -uo pipefail
+          ERR=0
+          ok(){ echo "✅ $1"; }
+          bad(){ echo "::error::$1"; ERR=1; }
+          warn(){ echo "::warning::$1"; }
+
+          { [ -f settings.gradle.kts ] || [ -f settings.gradle ]; } && ok "settings.gradle" || bad "settings.gradle(.kts) missing in root"
+          { [ -f build.gradle.kts ] || [ -f build.gradle ]; } && ok "root build.gradle" || bad "root build.gradle(.kts) missing"
+          { [ -f app/build.gradle.kts ] || [ -f app/build.gradle ]; } && ok "app/build.gradle" || bad "app/build.gradle(.kts) missing"
+          [ -f app/src/main/AndroidManifest.xml ] && ok "AndroidManifest.xml" || bad "app/src/main/AndroidManifest.xml missing"
+          [ -d SmgBackup ] && bad "Wrapper folder 'SmgBackup' still in root"
+
+          grep -qE 'include\(?\s*["'"'"']:app' settings.gradle* 2>/dev/null && ok "include(:app)" || bad "settings does not include :app"
+          grep -qE 'namespace' app/build.gradle* 2>/dev/null && ok "namespace" || warn "namespace not found in app/build.gradle"
+          grep -qE 'compileSdk' app/build.gradle* 2>/dev/null && ok "compileSdk" || warn "compileSdk not found"
+          [ -f gradle.properties ] && ok "gradle.properties" || warn "gradle.properties missing"
+          grep -q 'android.useAndroidX' gradle.properties 2>/dev/null || warn "android.useAndroidX not set"
+          [ -f gradlew ] && ok "gradlew" || warn "gradlew missing (build will use Gradle 8.9)"
+          [ -f gradle/wrapper/gradle-wrapper.jar ] || warn "gradle-wrapper.jar missing"
+
+          N=$(find app/src -name '*.kt' -o -name '*.java' 2>/dev/null | wc -l)
+          echo "Source files: $N"; [ "$N" -gt 0 ] || bad "No Kotlin/Java sources in app/src"
+
+          echo "---- Tree ----"; find . -path ./.git -prune -o -maxdepth 2 -print | sort | head -n 60
+          exit $ERR
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ "${{ inputs.delete_zip }}" = "true" ]; then git rm -q --ignore-unmatch .github/SmgBackup.zip; fi
+          git add -A
+          git diff --cached --quiet && { echo "Nothing to commit"; exit 0; }
+          git commit -m "Extract SmgBackup.zip to repo root"
+          git push
+
+      - name: Trigger build workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build.yml --ref "${{ github.ref_name }}" || echo "Run build manually"
